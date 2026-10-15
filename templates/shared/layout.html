@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }} – DMart IMS</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">D</div>
+            <div>
+                <div class="logo-title">DMart IMS</div>
+                <div class="logo-sub">Inventory System</div>
+            </div>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-label">Main Menu</div>
+            <a href="{{ url_for('home.index') }}" class="nav-item {{ 'active' if active_page == 'home' else '' }}">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a href="{{ url_for('inventory.index') }}" class="nav-item {{ 'active' if active_page == 'inventory' else '' }}">
+                <span class="nav-icon">📦</span> Inventory
+            </a>
+            <a href="{{ url_for('sales.index') }}" class="nav-item {{ 'active' if active_page == 'sales' else '' }}">
+                <span class="nav-icon">🛒</span> Record Sales
+            </a>
+            <a href="{{ url_for('forecast.index') }}" class="nav-item {{ 'active' if active_page == 'forecast' else '' }}">
+                <span class="nav-icon">📈</span> Demand Forecast
+            </a>
+            <a href="{{ url_for('alerts.index') }}" class="nav-item {{ 'active' if active_page == 'alerts' else '' }}">
+                <span class="nav-icon">🔔</span> Alerts
+                {% if alert_count and alert_count > 0 %}
+                    <span class="alert-badge">{{ alert_count }}</span>
+                {% endif %}
+            </a>
+            <a href="{{ url_for('reports.index') }}" class="nav-item {{ 'active' if active_page == 'reports' else '' }}">
+                <span class="nav-icon">📋</span> Reports
+            </a>
+        </div>
+
+        <div class="sidebar-footer">
+            <div style="font-size:10px;color:rgba(255,255,255,0.35)">FYMSc Comp. Sci.</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.6);font-weight:600">MIT - WPU</div>
+        </div>
+    </nav>
+
+    <!-- MAIN -->
+    <main class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="toast {{ 'toast-success' if category == 'success' else 'toast-error' }}">
+                    {{ '✅' if category == 'success' else '❌' }} {{ message }}
+                </div>
+            {% endfor %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="{{ url_for('static', filename='js/site.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

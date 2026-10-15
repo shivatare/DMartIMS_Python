@@ -1,0 +1,91 @@
+{% extends "shared/layout.html" %}
+{% set title = "Alerts" %}
+{% set active_page = "alerts" %}
+
+{% block content %}
+<h1 class="page-title">🔔 Stock Alerts</h1>
+<p class="page-sub">Automated low-stock and reorder notifications</p>
+
+{% if not low_stock %}
+    <div class="card" style="text-align:center;padding:48px">
+        <div style="font-size:56px;margin-bottom:12px">✅</div>
+        <p style="font-size:18px;font-weight:700;color:var(--green)">All products are well stocked!</p>
+        <p style="color:var(--gray);font-size:13px">No alerts at this time.</p>
+    </div>
+{% else %}
+    {% if critical %}
+    <div style="margin-bottom:24px">
+        <h3 style="color:var(--red);font-size:15px;font-weight:700;margin-bottom:12px">
+            🚨 Critical — Immediate Reorder Required ({{ critical|length }} items)
+        </h3>
+        {% for p in critical %}
+        <div class="alert-banner alert-danger">
+            <strong>{{ p.name }}</strong> ({{ p.category }}) — Only <strong>{{ p.stock_quantity }} {{ p.unit }}</strong> remaining
+            (min: {{ p.min_stock_level }}). Supplier: {{ p.supplier_name or '—' }}.
+            Suggested Reorder: <strong style="color:var(--red)">{{ reorder_map.get(p.id, 0) }} units</strong> ·
+            Lead time: {{ p.lead_time_days }} days
+            <a href="{{ url_for('inventory.edit', id=p.id) }}" style="margin-left:12px;color:var(--red);font-weight:700">Update Stock →</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if low_only %}
+    <div style="margin-bottom:24px">
+        <h3 style="color:#856404;font-size:15px;font-weight:700;margin-bottom:12px">
+            ⚠️ Low Stock Warning ({{ low_only|length }} items)
+        </h3>
+        {% for p in low_only %}
+        <div class="alert-banner alert-warn">
+            <strong>{{ p.name }}</strong> ({{ p.category }}) — Stock at <strong>{{ p.stock_quantity }} {{ p.unit }}</strong>
+            (min: {{ p.min_stock_level }}). Recommended Reorder:
+            <strong>{{ reorder_map.get(p.id, 0) }} units</strong> · Lead time: {{ p.lead_time_days }} days
+            <a href="{{ url_for('inventory.edit', id=p.id) }}" style="margin-left:12px;color:#856404;font-weight:700">Update Stock →</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+{% endif %}
+
+<!-- Full Coverage Table -->
+<div class="card">
+    <p class="card-title">📋 Complete Stock Coverage Report</p>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Product</th><th>Category</th>
+                <th>Current Stock</th><th>Min Stock</th>
+                <th>Days Coverage*</th><th>Reorder Qty</th>
+                <th>Lead Time</th><th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in all_products %}
+            {% set reorder = reorder_map.get(p.id, 0) %}
+            {% set coverage = "%.0f"|format(p.stock_quantity / (p.min_stock_level / 30.0)) ~ 'd' if p.min_stock_level > 0 else '—' %}
+            <tr>
+                <td><strong>{{ p.name }}</strong></td>
+                <td><span class="badge badge-cat">{{ p.category }}</span></td>
+                <td>
+                    <strong style="color:{{ 'var(--red)' if p.stock_status == 'Critical' else ('var(--orange)' if p.stock_status == 'Low' else 'var(--green)') }}">
+                        {{ p.stock_quantity }} {{ p.unit }}
+                    </strong>
+                </td>
+                <td>{{ p.min_stock_level }}</td>
+                <td>{{ coverage }}</td>
+                <td style="font-weight:700;color:var(--blue)">{{ reorder }}</td>
+                <td>{{ p.lead_time_days }} days</td>
+                <td>
+                    <span class="badge {{ 'badge-critical' if p.stock_status == 'Critical' else ('badge-low' if p.stock_status == 'Low' else 'badge-ok') }}">
+                        {{ p.stock_status }}
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p style="font-size:11px;color:var(--gray);margin-top:10px">
+        *Days Coverage estimated from min stock level ratio. For precise forecasting, see the Demand Forecast page.
+    </p>
+</div>
+{% endblock %}

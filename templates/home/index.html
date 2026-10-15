@@ -1,0 +1,152 @@
+{% extends "shared/layout.html" %}
+{% set title = "Dashboard" %}
+{% set active_page = "home" %}
+
+{% block content %}
+<h1 class="page-title">📊 Dashboard</h1>
+<p class="page-sub">DMart Store · Real-time Inventory Overview · {{ now.strftime('%A, %d %B %Y') }}</p>
+
+<!-- KPI Cards -->
+<div class="kpi-row">
+    <div class="kpi-card blue">
+        <div class="kpi-value">{{ total_products }}</div>
+        <div class="kpi-label">Total Products</div>
+    </div>
+    <div class="kpi-card red">
+        <div class="kpi-value">{{ low_stock_count }}</div>
+        <div class="kpi-label">Low Stock Items</div>
+    </div>
+    <div class="kpi-card green">
+        <div class="kpi-value">₹{{ "%.0f"|format(total_inventory_value / 1000) }}K</div>
+        <div class="kpi-label">Inventory Value</div>
+    </div>
+    <div class="kpi-card gold">
+        <div class="kpi-value">{{ today_transactions }} txn</div>
+        <div class="kpi-label">Today's Transactions</div>
+    </div>
+    <div class="kpi-card orange">
+        <div class="kpi-value">₹{{ "{:,.0f}".format(month_sales_value) }}</div>
+        <div class="kpi-label">This Month's Sales</div>
+    </div>
+</div>
+
+<!-- Critical Alert -->
+{% if critical_stock_count > 0 %}
+<div class="alert-banner alert-danger" style="margin-bottom:20px">
+    🚨 <strong>Critical Stock Alert:</strong>
+    {{ low_stock_products | selectattr('stock_status', 'eq', 'Critical') | map(attribute='name') | join(', ') }}
+    — needs immediate reorder!
+    <a href="{{ url_for('alerts.index') }}" style="color:var(--red);font-weight:700;margin-left:8px">View Alerts →</a>
+</div>
+{% endif %}
+
+<!-- Charts Row -->
+<div class="grid-2">
+    <div class="card">
+        <p class="card-title">📦 Stock Units by Category</p>
+        <div class="chart-container">
+            <canvas id="catChart"></canvas>
+        </div>
+    </div>
+    <div class="card">
+        <p class="card-title">📈 12-Month Demand Trend</p>
+        <div class="chart-container">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Low Stock Table -->
+<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <p class="card-title" style="margin-bottom:0">⚠️ Low & Critical Stock Products</p>
+        <a href="{{ url_for('inventory.index') }}" class="btn btn-ghost btn-sm">View All →</a>
+    </div>
+    {% if not low_stock_products %}
+        <div class="alert-banner alert-success">✅ All products are adequately stocked!</div>
+    {% else %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Product</th><th>Category</th><th>Stock</th>
+                    <th>Min Stock</th><th>Supplier</th><th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in low_stock_products %}
+                <tr>
+                    <td><strong>{{ p.name }}</strong></td>
+                    <td><span class="badge badge-cat">{{ p.category }}</span></td>
+                    <td><strong style="color:{{ 'var(--red)' if p.stock_status == 'Critical' else 'var(--orange)' }}">
+                        {{ p.stock_quantity }} {{ p.unit }}</strong></td>
+                    <td>{{ p.min_stock_level }}</td>
+                    <td>{{ p.supplier_name or '—' }}</td>
+                    <td>
+                        <span class="badge {{ 'badge-critical' if p.stock_status == 'Critical' else 'badge-low' }}">
+                            {{ p.stock_status }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+
+<!-- Category Summary -->
+<div class="card">
+    <p class="card-title">🏪 Inventory Summary by Category</p>
+    <table class="data-table">
+        <thead><tr><th>Category</th><th>Total Stock Units</th><th>Stock Value</th></tr></thead>
+        <tbody>
+            {% for c in category_stocks %}
+            <tr>
+                <td><span class="badge badge-cat">{{ c.category }}</span></td>
+                <td>{{ "{:,.0f}".format(c.total_stock) }}</td>
+                <td><strong>₹{{ "{:,.0f}".format(c.total_value) }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const catLabels = {{ category_stocks | map(attribute='category') | list | tojson }};
+const catValues = {{ category_stocks | map(attribute='total_stock') | list | tojson }};
+
+new Chart(document.getElementById('catChart'), {
+    type: 'bar',
+    data: {
+        labels: catLabels,
+        datasets: [{ label: 'Units in Stock', data: catValues, backgroundColor: '#003087cc', borderRadius: 5 }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { grid: { color: '#e0e6f0' } }, x: { grid: { display: false } } }
+    }
+});
+
+const trendMonths = {{ top_product_history | map(attribute='month_label') | list | tojson }};
+const trendValues = {{ top_product_history | map(attribute='units_sold') | list | tojson }};
+
+new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+        labels: trendMonths,
+        datasets: [{
+            label: 'Units Sold', data: trendValues,
+            borderColor: '#d0021b', backgroundColor: 'rgba(208,2,27,0.08)',
+            fill: true, tension: 0.4, pointRadius: 4
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { grid: { color: '#e0e6f0' } }, x: { grid: { display: false } } }
+    }
+});
+</script>
+{% endblock %}

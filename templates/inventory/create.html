@@ -1,0 +1,60 @@
+{% extends "shared/layout.html" %}
+{% set title = "Add Product" %}
+{% set active_page = "inventory" %}
+
+{% block content %}
+<h1 class="page-title">➕ Add New Product</h1>
+<p class="page-sub">Add a new DMart product to inventory</p>
+
+<div class="card" style="max-width:700px">
+    <form method="post" action="{{ url_for('inventory.create') }}">
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label">Product Name *</label>
+                <input name="name" class="form-control" required placeholder="e.g. Tata Salt 1kg" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Category *</label>
+                <select name="category" class="form-control">
+                    {% for cat in categories_list %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Price (₹) *</label>
+                <input name="price" type="number" step="0.01" min="0" class="form-control" required placeholder="0.00" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Stock Quantity *</label>
+                <input name="stock_quantity" type="number" min="0" class="form-control" required placeholder="0" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Minimum Stock Level *</label>
+                <input name="min_stock_level" type="number" min="1" class="form-control" required placeholder="20" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Lead Time (days) *</label>
+                <input name="lead_time_days" type="number" min="1" value="3" class="form-control" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Unit</label>
+                <select name="unit" class="form-control">
+                    {% for u in units_list %}
+                        <option value="{{ u }}">{{ u }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Supplier Name</label>
+                <input name="supplier_name" class="form-control" placeholder="e.g. HUL, Nestle India" />
+            </div>
+        </div>
+        <hr class="section-divider" />
+        <div style="display:flex;gap:10px">
+            <button type="submit" class="btn btn-primary">💾 Save Product</button>
+            <a href="{{ url_for('inventory.index') }}" class="btn btn-ghost">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "shared/layout.html" %}
+{% set title = "Record Sales" %}
+{% set active_page = "sales" %}
+
+{% block content %}
+<h1 class="page-title">🛒 Record Sales</h1>
+<p class="page-sub">Log product sales — stock updates automatically in real time</p>
+
+<div class="grid-2">
+    <!-- Sale Form -->
+    <div class="card">
+        <p class="card-title">New Sale Entry</p>
+        <form method="post" action="{{ url_for('sales.create') }}">
+
+            <div class="form-group">
+                <label class="form-label">Product *</label>
+                <select name="product_id" id="productSelect" class="form-control" onchange="loadProduct(this.value)">
+                    {% for p in products %}
+                    <option value="{{ p.id }}" data-price="{{ p.price }}" data-stock="{{ p.stock_quantity }}" data-unit="{{ p.unit }}">
+                        {{ p.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:8px">
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Unit Price</label>
+                    <input id="unitPrice" class="form-control" readonly
+                           style="background:#f0f3f9;font-weight:700;color:var(--blue)" />
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Available Stock</label>
+                    <input id="availStock" class="form-control" readonly
+                           style="background:#f0f3f9;font-weight:700" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Quantity *</label>
+                <input name="quantity" id="qtyInput" type="number" min="1" value="1"
+                       class="form-control" oninput="calcTotal()" required />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Sale Date *</label>
+                <input name="sale_date" type="date" class="form-control" value="{{ today }}" required />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Notes (optional)</label>
+                <input name="notes" class="form-control" placeholder="e.g. Bulk purchase, Offer sale..." />
+            </div>
+
+            <hr class="section-divider" />
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <span style="font-size:13px;color:var(--gray)">Total Amount</span>
+                <span id="totalAmt" style="font-size:26px;font-weight:800;color:var(--dark)">₹0</span>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px">
+                ✅ Record Sale
+            </button>
+        </form>
+    </div>
+
+    <!-- Info panel -->
+    <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <p class="card-title" style="margin:0">Recent Sales</p>
+            <a href="{{ url_for('sales.history') }}" class="btn btn-ghost btn-sm">View All →</a>
+        </div>
+        <div style="color:var(--gray);font-size:13px">
+            Record a sale to see it here. <a href="{{ url_for('sales.history') }}" style="color:var(--blue)">View full history</a>.
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+window.addEventListener('DOMContentLoaded', function() {
+    const sel = document.getElementById('productSelect');
+    if (sel && sel.options.length > 0) updateProductInfo(sel);
+});
+
+function loadProduct(id) {
+    updateProductInfo(document.getElementById('productSelect'));
+}
+
+function updateProductInfo(sel) {
+    const opt = sel.options[sel.selectedIndex];
+    const price = parseFloat(opt.dataset.price) || 0;
+    const stock = opt.dataset.stock;
+    const unit  = opt.dataset.unit;
+    document.getElementById('unitPrice').value  = '₹' + price.toFixed(2);
+    document.getElementById('availStock').value = stock + ' ' + unit;
+    calcTotal();
+}
+
+function calcTotal() {
+    const sel = document.getElementById('productSelect');
+    const opt = sel ? sel.options[sel.selectedIndex] : null;
+    const price = opt ? parseFloat(opt.dataset.price) || 0 : 0;
+    const qty   = parseInt(document.getElementById('qtyInput').value) || 0;
+    document.getElementById('totalAmt').textContent = '₹' + (price * qty).toLocaleString('en-IN');
+}
+</script>
+{% endblock %}

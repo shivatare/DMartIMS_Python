@@ -1,0 +1,60 @@
+{% extends "shared/layout.html" %}
+{% set title = "Edit Product" %}
+{% set active_page = "inventory" %}
+
+{% block content %}
+<h1 class="page-title">✏️ Edit Product</h1>
+<p class="page-sub">Update product details for: <strong>{{ product.name }}</strong></p>
+
+<div class="card" style="max-width:700px">
+    <form method="post" action="{{ url_for('inventory.edit', id=product.id) }}">
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label">Product Name *</label>
+                <input name="name" class="form-control" required value="{{ product.name }}" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Category *</label>
+                <select name="category" class="form-control">
+                    {% for cat in categories_list %}
+                        <option value="{{ cat }}" {{ 'selected' if cat == product.category }}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Price (₹) *</label>
+                <input name="price" type="number" step="0.01" min="0" class="form-control" required value="{{ product.price }}" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Stock Quantity *</label>
+                <input name="stock_quantity" type="number" min="0" class="form-control" required value="{{ product.stock_quantity }}" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Minimum Stock Level *</label>
+                <input name="min_stock_level" type="number" min="1" class="form-control" required value="{{ product.min_stock_level }}" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Lead Time (days) *</label>
+                <input name="lead_time_days" type="number" min="1" class="form-control" required value="{{ product.lead_time_days }}" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Unit</label>
+                <select name="unit" class="form-control">
+                    {% for u in units_list %}
+                        <option value="{{ u }}" {{ 'selected' if u == product.unit }}>{{ u }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Supplier Name</label>
+                <input name="supplier_name" class="form-control" value="{{ product.supplier_name or '' }}" />
+            </div>
+        </div>
+        <hr class="section-divider" />
+        <div style="display:flex;gap:10px">
+            <button type="submit" class="btn btn-primary">💾 Update Product</button>
+            <a href="{{ url_for('inventory.index') }}" class="btn btn-ghost">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

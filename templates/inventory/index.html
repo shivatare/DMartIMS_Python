@@ -1,0 +1,90 @@
+{% extends "shared/layout.html" %}
+{% set title = "Inventory" %}
+{% set active_page = "inventory" %}
+
+{% block content %}
+<h1 class="page-title">📦 Inventory</h1>
+<p class="page-sub">Manage all DMart products and stock levels</p>
+
+<div class="filter-bar">
+    <form method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;width:100%">
+        <input name="search" class="form-control" placeholder="🔍 Search by name or category..."
+               value="{{ search or '' }}" style="max-width:280px" />
+        <select name="category" class="form-control" onchange="this.form.submit()" style="max-width:180px">
+            <option value="All" {{ 'selected' if not category or category == 'All' }}>All Categories</option>
+            {% for cat in categories %}
+                <option value="{{ cat }}" {{ 'selected' if category == cat }}>{{ cat }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-blue">Filter</button>
+        <a href="{{ url_for('inventory.index') }}" class="btn btn-ghost">Reset</a>
+        <a href="{{ url_for('inventory.create') }}" class="btn btn-primary" style="margin-left:auto">+ Add Product</a>
+    </form>
+</div>
+
+<div class="card">
+    <p class="card-title">{{ products|length }} product(s) found</p>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>#</th><th>Product Name</th><th>Category</th>
+                <th>Price</th><th>Stock</th><th>Min Stock</th>
+                <th>Lead Time</th><th>Supplier</th><th>Status</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in products %}
+            <tr>
+                <td style="color:var(--gray);font-size:12px">{{ p.id }}</td>
+                <td><strong>{{ p.name }}</strong></td>
+                <td><span class="badge badge-cat">{{ p.category }}</span></td>
+                <td>₹{{ p.price }}</td>
+                <td>
+                    <span style="font-weight:700;color:{{ 'var(--red)' if p.stock_status == 'Critical' else ('var(--orange)' if p.stock_status == 'Low' else 'var(--green)') }}">
+                        {{ p.stock_quantity }} {{ p.unit }}
+                    </span>
+                </td>
+                <td>{{ p.min_stock_level }}</td>
+                <td>{{ p.lead_time_days }} days</td>
+                <td style="font-size:12px;color:var(--gray)">{{ p.supplier_name or '—' }}</td>
+                <td>
+                    <span class="badge {{ 'badge-critical' if p.stock_status == 'Critical' else ('badge-low' if p.stock_status == 'Low' else 'badge-ok') }}">
+                        {{ p.stock_status }}
+                    </span>
+                </td>
+                <td>
+                    <div style="display:flex;gap:6px">
+                        <a href="{{ url_for('inventory.edit', id=p.id) }}" class="btn btn-ghost btn-sm">Edit</a>
+                        <a href="{{ url_for('sales.index') }}" class="btn btn-sm" style="background:#eef3ff;color:var(--blue)">Sell</a>
+                        <form method="post" action="{{ url_for('inventory.delete', id=p.id) }}" style="display:inline"
+                              onsubmit="return confirm('Delete {{ p.name }}?')">
+                            <button type="submit" class="btn btn-sm" style="background:#fdecea;color:var(--red)">Del</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Restock Card -->
+<div class="card">
+    <p class="card-title">🔄 Quick Restock</p>
+    <form method="post" action="{{ url_for('inventory.restock') }}" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+        <div class="form-group" style="margin:0;flex:1;min-width:200px">
+            <label class="form-label">Product</label>
+            <select name="id" class="form-control">
+                {% for p in products %}
+                    <option value="{{ p.id }}">{{ p.name }} (Current: {{ p.stock_quantity }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin:0;width:140px">
+            <label class="form-label">Add Quantity</label>
+            <input name="quantity" type="number" min="1" value="50" class="form-control" />
+        </div>
+        <button type="submit" class="btn btn-green">+ Restock</button>
+    </form>
+</div>
+{% endblock %}

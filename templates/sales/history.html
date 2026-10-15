@@ -1,0 +1,63 @@
+{% extends "shared/layout.html" %}
+{% set title = "Sales History" %}
+{% set active_page = "sales" %}
+
+{% block content %}
+<h1 class="page-title">📜 Sales History</h1>
+<p class="page-sub">All recorded transactions — last {{ sales|length }} entries</p>
+
+{% set total_revenue = sales | sum(attribute='total_amount') %}
+{% set total_units = sales | sum(attribute='quantity') %}
+
+<div class="kpi-row">
+    <div class="kpi-card blue">
+        <div class="kpi-value">{{ sales|length }}</div>
+        <div class="kpi-label">Total Transactions</div>
+    </div>
+    <div class="kpi-card green">
+        <div class="kpi-value">₹{{ "{:,.0f}".format(total_revenue) }}</div>
+        <div class="kpi-label">Total Revenue</div>
+    </div>
+    <div class="kpi-card gold">
+        <div class="kpi-value">{{ "{:,.0f}".format(total_units) }}</div>
+        <div class="kpi-label">Units Sold</div>
+    </div>
+    <div class="kpi-card orange">
+        <div class="kpi-value">₹{{ "{:,.0f}".format(total_revenue / sales|length) if sales else '0' }}</div>
+        <div class="kpi-label">Avg Transaction Value</div>
+    </div>
+</div>
+
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <p class="card-title" style="margin:0">All Sales</p>
+        <a href="{{ url_for('sales.index') }}" class="btn btn-primary btn-sm">+ New Sale</a>
+    </div>
+    {% if not sales %}
+        <div class="alert-banner alert-warn">No sales recorded yet. <a href="{{ url_for('sales.index') }}">Record your first sale →</a></div>
+    {% else %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>#</th><th>Product</th><th>Category</th>
+                    <th>Qty</th><th>Unit Price</th><th>Total</th><th>Date</th><th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sales %}
+                <tr>
+                    <td style="color:var(--gray);font-size:12px">{{ loop.index }}</td>
+                    <td><strong>{{ s.product.name }}</strong></td>
+                    <td><span class="badge badge-cat">{{ s.product.category }}</span></td>
+                    <td>{{ s.quantity }} {{ s.product.unit }}</td>
+                    <td>₹{{ s.unit_price }}</td>
+                    <td><strong style="color:var(--green)">₹{{ "{:,.0f}".format(s.total_amount) }}</strong></td>
+                    <td>{{ s.sale_date.strftime('%d %b %Y') }}</td>
+                    <td style="color:var(--gray);font-size:12px">{{ s.notes or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+{% endblock %}

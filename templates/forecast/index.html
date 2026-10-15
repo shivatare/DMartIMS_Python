@@ -1,0 +1,156 @@
+{% extends "shared/layout.html" %}
+{% set title = "Demand Forecast" %}
+{% set active_page = "forecast" %}
+
+{% block content %}
+<h1 class="page-title">📈 Demand Forecasting</h1>
+<p class="page-sub">Holt-Winters Exponential Smoothing · 3-Month Horizon</p>
+
+<div style="margin-bottom:20px;display:flex;gap:12px;align-items:center">
+    <select id="productSelect" class="form-control" style="max-width:340px"
+            onchange="window.location='/forecast?product_id='+this.value">
+        {% for p in products %}
+            <option value="{{ p.id }}" {{ 'selected' if p.id == selected_id }}>{{ p.name }}</option>
+        {% endfor %}
+    </select>
+    <span style="font-size:13px;color:var(--gray)">Select product to view its forecast</span>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-row">
+    <div class="kpi-card blue">
+        <div class="kpi-value">{{ "%.0f"|format(forecast.forecasts[0].predicted_units) if forecast.forecasts else '—' }}</div>
+        <div class="kpi-label">Forecast Next Month (units)</div>
+    </div>
+    <div class="kpi-card green">
+        <div class="kpi-value">{{ "%.1f"|format(forecast.mae) }}</div>
+        <div class="kpi-label">MAE (Mean Abs. Error)</div>
+    </div>
+    <div class="kpi-card orange">
+        <div class="kpi-value">{{ "%.1f"|format(forecast.rmse) }}</div>
+        <div class="kpi-label">RMSE</div>
+    </div>
+    <div class="kpi-card red">
+        <div class="kpi-value">{{ "%.1f"|format(forecast.mape) }}%</div>
+        <div class="kpi-label">MAPE</div>
+    </div>
+    <div class="kpi-card gold">
+        <div class="kpi-value">{{ forecast.reorder_point }}</div>
+        <div class="kpi-label">Reorder Point (units)</div>
+    </div>
+</div>
+
+<!-- Main Chart -->
+<div class="card">
+    <p class="card-title">📊 Historical Demand + 3-Month Forecast — {{ forecast.product_name }}</p>
+    <div class="chart-container-lg">
+        <canvas id="forecastChart"></canvas>
+    </div>
+    <p style="font-size:11px;color:var(--gray);margin-top:8px">
+        🔵 Actual historical demand &nbsp;|&nbsp; 🔴 Forecast &nbsp;|&nbsp;
+        Shaded area = 95% confidence interval
+    </p>
+</div>
+
+<div class="grid-2">
+    <!-- Forecast Table -->
+    <div class="card">
+        <p class="card-title">📅 3-Month Forecast Values</p>
+        <table class="data-table">
+            <thead><tr><th>Month</th><th>Predicted Units</th><th>Lower (95%)</th><th>Upper (95%)</th></tr></thead>
+            <tbody>
+                {% for f in forecast.forecasts %}
+                <tr>
+                    <td><strong>{{ f.month }}</strong></td>
+                    <td><strong style="color:var(--red);font-size:16px">{{ "%.0f"|format(f.predicted_units) }}</strong></td>
+                    <td style="color:var(--gray)">{{ "%.0f"|format(f.lower_bound) }}</td>
+                    <td style="color:var(--gray)">{{ "%.0f"|format(f.upper_bound) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <hr class="section-divider" />
+
+        <p style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:10px">
+            📦 Suggested Reorder: <span style="color:var(--red);font-size:18px">{{ forecast.suggested_order_qty }} units</span>
+        </p>
+        <p style="font-size:12px;color:var(--gray)">
+            Based on forecasted demand, current stock, and reorder point formula:
+            <em>(Avg Daily Demand × Lead Time) + Safety Stock</em>
+        </p>
+    </div>
+
+    <!-- Reorder Calculation -->
+    <div class="card">
+        <p class="card-title">🔢 Reorder Point Calculation</p>
+        <div class="stat-row">
+            <span class="stat-label">Avg Daily Demand (3-mo)</span>
+            <span class="stat-value">{{ "%.1f"|format(avg_daily) }} units/day</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Lead Time</span>
+            <span class="stat-value">{{ selected.lead_time_days if selected else 0 }} days</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Safety Stock (50% buffer)</span>
+            <span class="stat-value">{{ "%.0f"|format(safety) }} units</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Reorder Point Formula</span>
+            <span class="stat-value">({{ "%.1f"|format(avg_daily) }} × {{ selected.lead_time_days if selected else 0 }}) + {{ "%.0f"|format(safety) }}</span>
+        </div>
+        <div class="stat-row" style="background:var(--bg);border-radius:6px;padding:10px 12px;margin-top:4px">
+            <span style="font-weight:700;color:var(--dark)">= Reorder Point</span>
+            <span style="font-weight:800;font-size:20px;color:var(--blue)">{{ forecast.reorder_point }} units</span>
+        </div>
+
+        <hr class="section-divider" />
+
+        <p class="card-title">📊 Accuracy Metrics</p>
+        <div class="stat-row"><span class="stat-label">MAE</span><span class="stat-value">{{ "%.2f"|format(forecast.mae) }} units</span></div>
+        <div class="stat-row"><span class="stat-label">RMSE</span><span class="stat-value">{{ "%.2f"|format(forecast.rmse) }} units</span></div>
+        <div class="stat-row"><span class="stat-label">MAPE</span><span class="stat-value">{{ "%.2f"|format(forecast.mape) }}%</span></div>
+        <div class="stat-row"><span class="stat-label">Model</span><span class="stat-value">Holt-Winters (statsmodels)</span></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const histLabels = {{ history | map(attribute='month_label') | list | tojson }};
+const histValues = {{ history | map(attribute='units_sold') | list | tojson }};
+const fcstLabels = {{ forecast.forecasts | map(attribute='month') | list | tojson }};
+const fcstValues = {{ forecast.forecasts | map(attribute='predicted_units') | list | tojson }};
+const fcstLower  = {{ forecast.forecasts | map(attribute='lower_bound') | list | tojson }};
+const fcstUpper  = {{ forecast.forecasts | map(attribute='upper_bound') | list | tojson }};
+
+const allLabels   = [...histLabels, ...fcstLabels.map(l => l + '*')];
+const actualData  = [...histValues, ...fcstLabels.map(() => null)];
+const forecastData= [...histLabels.map(() => null), ...fcstValues];
+const upperData   = [...histLabels.map(() => null), ...fcstUpper];
+const lowerData   = [...histLabels.map(() => null), ...fcstLower];
+
+new Chart(document.getElementById('forecastChart'), {
+    type: 'line',
+    data: {
+        labels: allLabels,
+        datasets: [
+            { label: 'Actual Demand', data: actualData, borderColor: '#003087', backgroundColor: 'rgba(0,48,135,0.08)', fill: true, tension: 0.4, pointRadius: 4, borderWidth: 2.5 },
+            { label: 'Forecast', data: forecastData, borderColor: '#d0021b', backgroundColor: 'rgba(208,2,27,0.1)', fill: false, tension: 0.4, pointRadius: 6, borderWidth: 2.5, borderDash: [6,3], pointStyle: 'star' },
+            { label: 'Upper 95%', data: upperData, borderColor: 'rgba(208,2,27,0.2)', backgroundColor: 'rgba(208,2,27,0.08)', fill: '+1', tension: 0.4, pointRadius: 0, borderWidth: 1, borderDash: [3,3] },
+            { label: 'Lower 95%', data: lowerData, borderColor: 'rgba(208,2,27,0.2)', fill: false, tension: 0.4, pointRadius: 0, borderWidth: 1, borderDash: [3,3] }
+        ]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: 'bottom' } },
+        scales: {
+            y: { grid: { color: '#e0e6f0' }, title: { display: true, text: 'Units' } },
+            x: { grid: { display: false } }
+        }
+    }
+});
+</script>
+{% endblock %}

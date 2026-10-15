@@ -1,0 +1,149 @@
+{% extends "shared/layout.html" %}
+{% set title = "Reports" %}
+{% set active_page = "reports" %}
+
+{% block content %}
+<h1 class="page-title">📋 Reports & Analytics</h1>
+<p class="page-sub">Sales performance, inventory valuation, and turnover metrics</p>
+
+<div class="kpi-row">
+    <div class="kpi-card blue">
+        <div class="kpi-value">{{ total_transactions }}</div>
+        <div class="kpi-label">Total Transactions</div>
+    </div>
+    <div class="kpi-card green">
+        <div class="kpi-value">₹{{ "{:,.0f}".format(total_revenue) }}</div>
+        <div class="kpi-label">Total Sales Revenue</div>
+    </div>
+    <div class="kpi-card red">
+        <div class="kpi-value">₹{{ "%.0f"|format(total_inventory_value / 1000) }}K</div>
+        <div class="kpi-label">Inventory Value</div>
+    </div>
+    <div class="kpi-card gold">
+        <div class="kpi-value">{{ all_products|length }}</div>
+        <div class="kpi-label">Products Tracked</div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <div class="card">
+        <p class="card-title">📊 Sales Revenue by Category</p>
+        {% if not category_revenue %}
+            <div class="alert-banner alert-warn" style="margin-top:0">Record sales to see category breakdown.</div>
+        {% else %}
+            <div class="chart-container">
+                <canvas id="catRevChart"></canvas>
+            </div>
+        {% endif %}
+    </div>
+    <div class="card">
+        <p class="card-title">📦 Inventory Value by Category</p>
+        <div class="chart-container">
+            <canvas id="invValChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Inventory Summary Table -->
+<div class="card">
+    <p class="card-title">📋 Inventory & Forecast Summary Report</p>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Product</th><th>Category</th><th>Price</th>
+                <th>Stock</th><th>Stock Value</th>
+                <th>Forecast (30d)</th><th>Inventory Turnover*</th><th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in all_products %}
+            {% set fc = forecast_map.get(p.id, 0) %}
+            {% set turnover = "%.2f"|format(fc / p.stock_quantity) if p.stock_quantity > 0 else '—' %}
+            <tr>
+                <td><strong>{{ p.name }}</strong></td>
+                <td><span class="badge badge-cat">{{ p.category }}</span></td>
+                <td>₹{{ p.price }}</td>
+                <td>{{ p.stock_quantity }} {{ p.unit }}</td>
+                <td><strong style="color:var(--blue)">₹{{ "{:,.0f}".format(p.stock_value) }}</strong></td>
+                <td><strong>{{ "%.0f"|format(fc) }} units</strong></td>
+                <td>{{ turnover }}</td>
+                <td>
+                    <span class="badge {{ 'badge-critical' if p.stock_status == 'Critical' else ('badge-low' if p.stock_status == 'Low' else 'badge-ok') }}">
+                        {{ p.stock_status }}
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p style="font-size:11px;color:var(--gray);margin-top:10px">
+        *Inventory Turnover = Forecasted Monthly Demand / Current Stock. Higher ratio = faster-moving product.
+    </p>
+</div>
+
+<!-- Recent Sales -->
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <p class="card-title" style="margin:0">🛒 Recent Transactions</p>
+        <a href="{{ url_for('sales.history') }}" class="btn btn-ghost btn-sm">Full History →</a>
+    </div>
+    {% if not recent_sales %}
+        <div class="alert-banner alert-warn" style="margin-top:0">No transactions recorded yet.</div>
+    {% else %}
+        <table class="data-table">
+            <thead><tr><th>Product</th><th>Category</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Date</th></tr></thead>
+            <tbody>
+                {% for s in recent_sales %}
+                <tr>
+                    <td><strong>{{ s.product.name }}</strong></td>
+                    <td><span class="badge badge-cat">{{ s.product.category }}</span></td>
+                    <td>{{ s.quantity }}</td>
+                    <td>₹{{ s.unit_price }}</td>
+                    <td><strong style="color:var(--green)">₹{{ "{:,.0f}".format(s.total_amount) }}</strong></td>
+                    <td>{{ s.sale_date.strftime('%d %b %Y') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if category_revenue %}
+new Chart(document.getElementById('catRevChart'), {
+    type: 'bar',
+    data: {
+        labels: {{ category_revenue | map(attribute='category') | list | tojson }},
+        datasets: [{
+            label: 'Revenue (₹)',
+            data: {{ category_revenue | map(attribute='revenue') | list | tojson }},
+            backgroundColor: '#d0021b99', borderColor: '#d0021b', borderWidth: 1.5, borderRadius: 5
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { grid: { color: '#e0e6f0' } }, x: { grid: { display: false } } }
+    }
+});
+{% endif %}
+
+new Chart(document.getElementById('invValChart'), {
+    type: 'doughnut',
+    data: {
+        labels: {{ inv_by_cat | map(attribute='category') | list | tojson }},
+        datasets: [{
+            data: {{ inv_by_cat | map(attribute='value') | list | tojson }},
+            backgroundColor: ['#003087','#005cac','#d0021b','#f5a623','#27ae60','#e67e22','#8e44ad','#1abc9c'],
+            borderWidth: 2, borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'right', labels: { boxWidth: 10 } } }
+    }
+});
+</script>
+{% endblock %}
